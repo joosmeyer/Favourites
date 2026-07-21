@@ -40,17 +40,84 @@
     top: 0;
     z-index: 10;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
     padding: 14px 24px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   header h1 {
     font-size: 17px;
     margin: 0 12px 0 0;
     white-space: nowrap;
   }
+  #launchRow { flex-wrap: wrap; }
+  .launch-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  #launchPills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .launch-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .launch-pill:hover { background: var(--surface); box-shadow: var(--shadow); }
+  .launch-pill .count { color: var(--text-dim); font-size: 11px; }
+  .launch-pill-actions { display: none; gap: 2px; }
+  .launch-pill:hover .launch-pill-actions { display: flex; }
+  .launch-pill-actions button {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 10px;
+    padding: 0;
+  }
+  .launch-pill.confirm { gap: 8px; }
+  .launch-pill.confirm button { padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .launch-pill.confirm button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  #newLauncherBtn {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  #newLauncherBtn:hover { color: var(--text); border-color: var(--text-dim); }
+  .checklist {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .checklist label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .checklist .none { color: var(--text-dim); font-size: 13px; }
   #search {
     flex: 1;
     max-width: 320px;
@@ -301,11 +368,18 @@
 <body>
 
 <header>
-  <h1>★ Favourites</h1>
-  <input id="search" type="text" placeholder="Search…" autocomplete="off">
-  <div class="spacer"></div>
-  <span id="saveStatus"></span>
-  <button id="addBtn">+ Add</button>
+  <div class="header-row">
+    <h1>★ Favourites</h1>
+    <input id="search" type="text" placeholder="Search…" autocomplete="off">
+    <div class="spacer"></div>
+    <span id="saveStatus"></span>
+    <button id="addBtn">+ Add</button>
+  </div>
+  <div class="header-row" id="launchRow">
+    <span class="launch-label">🚀 Quick Launch</span>
+    <div id="launchPills"></div>
+    <button id="newLauncherBtn">+ New</button>
+  </div>
 </header>
 
 <main>
@@ -356,6 +430,16 @@
         <input id="folderNameInput" type="text">
       </div>
     </div>
+    <div id="launcherFields" style="display:none;">
+      <div class="field">
+        <label for="launcherNameInput">Quick Launch name</label>
+        <input id="launcherNameInput" type="text" placeholder="e.g. Morning Routine">
+      </div>
+      <div class="field">
+        <label>Pages to launch</label>
+        <div id="launcherTileList" class="checklist"></div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button id="modalCancel">Cancel</button>
       <button id="modalSave" class="primary">Save</button>
@@ -370,13 +454,15 @@
   const DB_NAME = "favourites-app";
   const STORE_NAME = "handles";
   const HANDLE_KEY = "dataFileHandle";
-  const emptyData = () => ({ version: 1, updatedAt: null, folders: [], tiles: [] });
+  const emptyData = () => ({ version: 1, updatedAt: null, folders: [], tiles: [], launchers: [] });
 
   let state = emptyData();
   let fileHandle = null;
   let currentFolderId = null;
+  let modalMode = "tile"; // "tile" | "folder" | "launcher"
   let editingTileId = null;
   let editingFolderId = null;
+  let editingLauncherId = null;
   let searchQuery = "";
   let saveQueue = Promise.resolve();
 
@@ -488,6 +574,7 @@
       state = Object.assign(emptyData(), parsed);
       if (!Array.isArray(state.folders)) state.folders = [];
       if (!Array.isArray(state.tiles)) state.tiles = [];
+      if (!Array.isArray(state.launchers)) state.launchers = [];
       await idbSetHandle(fileHandle);
       hideGate();
       currentFolderId = null;
@@ -627,6 +714,7 @@
   }
 
   function render() {
+    renderLaunchBar();
     const grid = $("grid");
     grid.innerHTML = "";
 
@@ -664,6 +752,66 @@
     });
     $("empty").classList.toggle("visible", items.length === 0);
     $("empty").textContent = "No favourites yet — click + Add to get started.";
+  }
+
+  // ---------- Quick Launch ----------
+  function renderLaunchBar() {
+    const wrap = $("launchPills");
+    wrap.innerHTML = "";
+    state.launchers.forEach((launcher) => {
+      const pill = document.createElement("div");
+      pill.className = "launch-pill";
+      pill.setAttribute("role", "button");
+      pill.tabIndex = 0;
+      pill.title = `Open ${launcher.tileIds.length} page(s)`;
+
+      const label = document.createElement("span");
+      label.textContent = launcher.name;
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = `(${launcher.tileIds.length})`;
+
+      const actions = document.createElement("span");
+      actions.className = "launch-pill-actions";
+      actions.appendChild(iconBtn("✎", (e) => { e.stopPropagation(); openLauncherModal(launcher.id); }));
+      actions.appendChild(iconBtn("×", (e) => { e.stopPropagation(); confirmDeleteLauncher(pill, launcher); }));
+
+      pill.append(label, count, actions);
+      pill.addEventListener("click", () => launchGroup(launcher.id));
+      pill.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); launchGroup(launcher.id); }
+      });
+      wrap.appendChild(pill);
+    });
+  }
+
+  function launchGroup(launcherId) {
+    const launcher = state.launchers.find((l) => l.id === launcherId);
+    if (!launcher) return;
+    launcher.tileIds
+      .map((id) => state.tiles.find((t) => t.id === id))
+      .filter(Boolean)
+      .forEach((tile) => window.open(tile.url, "_blank", "noopener"));
+  }
+
+  function confirmDeleteLauncher(pill, launcher) {
+    pill.innerHTML = "";
+    pill.classList.add("confirm");
+    const label = document.createElement("span");
+    label.textContent = `Delete "${launcher.name}"?`;
+    const yes = document.createElement("button");
+    yes.className = "danger";
+    yes.textContent = "Delete";
+    yes.onclick = (e) => {
+      e.stopPropagation();
+      state.launchers = state.launchers.filter((l) => l.id !== launcher.id);
+      persist();
+      render();
+    };
+    const no = document.createElement("button");
+    no.textContent = "Cancel";
+    no.onclick = (e) => { e.stopPropagation(); render(); };
+    pill.append(label, yes, no);
   }
 
   function renderTile(tile) {
@@ -756,6 +904,7 @@
     yes.onclick = (e) => {
       e.preventDefault(); e.stopPropagation();
       state.tiles = state.tiles.filter((t) => t.id !== tile.id);
+      state.launchers.forEach((l) => { l.tileIds = l.tileIds.filter((id) => id !== tile.id); });
       persist();
       render();
     };
@@ -855,12 +1004,18 @@
     $("newFolderField").style.display = $("folderSelect").value === "__new__" ? "block" : "none";
   });
 
+  function hideAllModalFields() {
+    $("tileFields").style.display = "none";
+    $("folderFields").style.display = "none";
+    $("launcherFields").style.display = "none";
+  }
+
   function openTileModal(tileId) {
+    modalMode = "tile";
     editingTileId = tileId || null;
-    editingFolderId = null;
+    hideAllModalFields();
     $("modalTitle").textContent = tileId ? "Edit favourite" : "Add favourite";
     $("tileFields").style.display = "block";
-    $("folderFields").style.display = "none";
     $("newFolderField").style.display = "none";
     const tile = tileId ? state.tiles.find((t) => t.id === tileId) : null;
     $("nameInput").value = tile ? tile.name : "";
@@ -872,10 +1027,10 @@
   }
 
   function openFolderModal(folderId) {
+    modalMode = "folder";
     editingFolderId = folderId;
-    editingTileId = null;
+    hideAllModalFields();
     $("modalTitle").textContent = "Rename folder";
-    $("tileFields").style.display = "none";
     $("folderFields").style.display = "block";
     const folder = state.folders.find((f) => f.id === folderId);
     $("folderNameInput").value = folder ? folder.name : "";
@@ -883,9 +1038,45 @@
     $("folderNameInput").focus();
   }
 
+  function openLauncherModal(launcherId) {
+    modalMode = "launcher";
+    editingLauncherId = launcherId || null;
+    hideAllModalFields();
+    $("modalTitle").textContent = launcherId ? "Edit Quick Launch" : "New Quick Launch";
+    $("launcherFields").style.display = "block";
+    const launcher = launcherId ? state.launchers.find((l) => l.id === launcherId) : null;
+    $("launcherNameInput").value = launcher ? launcher.name : "";
+    const selectedIds = new Set(launcher ? launcher.tileIds : []);
+
+    const list = $("launcherTileList");
+    list.innerHTML = "";
+    if (state.tiles.length === 0) {
+      const none = document.createElement("div");
+      none.className = "none";
+      none.textContent = "Add some favourites first, then come back to group them here.";
+      list.appendChild(none);
+    } else {
+      [...state.tiles]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((tile) => {
+          const label = document.createElement("label");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = tile.id;
+          checkbox.checked = selectedIds.has(tile.id);
+          label.append(checkbox, document.createTextNode(tile.name));
+          list.appendChild(label);
+        });
+    }
+
+    $("modalOverlay").classList.add("visible");
+    $("launcherNameInput").focus();
+  }
+
   function closeModal() { $("modalOverlay").classList.remove("visible"); }
 
   $("addBtn").addEventListener("click", () => openTileModal(null));
+  $("newLauncherBtn").addEventListener("click", () => openLauncherModal(null));
   $("modalCancel").addEventListener("click", closeModal);
   $("modalOverlay").addEventListener("click", (e) => { if (e.target === $("modalOverlay")) closeModal(); });
   document.addEventListener("keydown", (e) => {
@@ -893,11 +1084,28 @@
   });
 
   $("modalSave").addEventListener("click", async () => {
-    if (editingFolderId) {
+    if (modalMode === "folder") {
       const name = $("folderNameInput").value.trim();
       if (!name) return;
       const folder = state.folders.find((f) => f.id === editingFolderId);
       folder.name = name;
+      persist();
+      closeModal();
+      render();
+      return;
+    }
+
+    if (modalMode === "launcher") {
+      const name = $("launcherNameInput").value.trim();
+      if (!name) return;
+      const tileIds = [...$("launcherTileList").querySelectorAll("input:checked")].map((cb) => cb.value);
+      if (editingLauncherId) {
+        const launcher = state.launchers.find((l) => l.id === editingLauncherId);
+        launcher.name = name;
+        launcher.tileIds = tileIds;
+      } else {
+        state.launchers.push({ id: uid(), name, tileIds });
+      }
       persist();
       closeModal();
       render();
@@ -927,14 +1135,17 @@
       render();
     } else {
       const list = tilesIn(folderId);
-      const tile = { id: uid(), name, url, icon: null, folderId, order: list.length };
+      const tile = { id: uid(), name, url, icon: makeInitialsIcon(name), folderId, order: list.length };
       state.tiles.push(tile);
+      persist();
       closeModal();
       render();
       const icon = await fetchIconDataUrl(url);
-      tile.icon = icon || makeInitialsIcon(name);
-      persist();
-      render();
+      if (icon) {
+        tile.icon = icon;
+        persist();
+        render();
+      }
     }
   });
 
