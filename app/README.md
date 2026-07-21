@@ -14,6 +14,15 @@ sessions.
    (the picker will suggest that name — just confirm the location).
 4. Start adding sites with **+ Add**. Every change saves to that JSON file automatically.
 
+## Quick Launch
+
+The **🚀 Quick Launch** row under the header lets you group a handful of your favourites
+under one named button — e.g. a "Morning Routine" button that opens your mail, calendar,
+and ticket board all at once. Click **+ New**, name it, and tick which pages it should
+open. Click the button itself to launch everything in it (each page opens in a new tab);
+hover it for edit/delete icons. Quick Launch groups just reference your existing tiles,
+so add the sites as favourites first, then group them.
+
 ### Make it feel like a single icon
 
 Right-click `favourites.html` → **Send to → Desktop (create shortcut)**. You can rename
@@ -45,3 +54,6 @@ since it's stored separately.
   favicon get a plain initials icon instead).
 - Opening the same `favourites-data.json` in two windows and editing both at once will
   overwrite whichever saves last — this app isn't a real-time sync tool.
+- If a Quick Launch group only opens its first page, your browser's pop-up blocker
+  probably caught the rest — allow pop-ups for this page (Edge/Chrome will show a blocked
+  icon in the address bar the first time this happens).
