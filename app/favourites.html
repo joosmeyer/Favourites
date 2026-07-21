@@ -693,10 +693,25 @@
     return canvas.toDataURL("image/png");
   }
 
+  // tile.icon may be a cached data URI, a live favicon URL, or missing entirely --
+  // this covers all three and swaps to a generated initials icon if a live URL fails
+  // to load (offline, blocked by a proxy, site has no favicon, etc).
+  function setIconWithFallback(img, icon, name) {
+    img.src = icon || makeInitialsIcon(name);
+    img.onerror = () => { img.onerror = null; img.src = makeInitialsIcon(name); };
+  }
+
+  function faviconUrlFor(url) {
+    return new URL(url).origin + "/favicon.ico";
+  }
+
+  // Tries to embed the favicon as a data URI so it never needs the network again.
+  // This only works for the minority of sites whose favicon.ico response includes
+  // CORS headers (Access-Control-Allow-Origin) -- most static assets don't send any,
+  // since CORS headers are normally added for APIs, not incidental files like favicons.
   async function fetchIconDataUrl(url) {
     try {
-      const origin = new URL(url).origin;
-      const resp = await fetch(origin + "/favicon.ico", { mode: "cors" });
+      const resp = await fetch(faviconUrlFor(url), { mode: "cors" });
       if (!resp.ok) return null;
       const blob = await resp.blob();
       if (!blob.type.startsWith("image/")) return null;
@@ -704,6 +719,14 @@
     } catch {
       return null;
     }
+  }
+
+  // Best available icon for a new tile: an embedded (offline-safe) data URI when the
+  // site's favicon allows it, otherwise a live URL to the site's favicon -- still shows
+  // the real icon whenever there's network access, and the tile's onerror handler falls
+  // back to the initials icon if that URL doesn't load.
+  async function resolveIcon(url) {
+    return (await fetchIconDataUrl(url)) || faviconUrlFor(url);
   }
 
   // ---------- Rendering ----------
@@ -826,7 +849,7 @@
     const iconWrap = document.createElement("div");
     iconWrap.className = "icon-wrap";
     const img = document.createElement("img");
-    img.src = tile.icon || makeInitialsIcon(tile.name);
+    setIconWithFallback(img, tile.icon, tile.name);
     img.alt = "";
     iconWrap.appendChild(img);
 
@@ -855,7 +878,7 @@
     inner.className = "folder-icon";
     tilesIn(folder.id).slice(0, 4).forEach((t) => {
       const img = document.createElement("img");
-      img.src = t.icon || makeInitialsIcon(t.name);
+      setIconWithFallback(img, t.icon, t.name);
       img.alt = "";
       inner.appendChild(img);
     });
@@ -1140,12 +1163,9 @@
       persist();
       closeModal();
       render();
-      const icon = await fetchIconDataUrl(url);
-      if (icon) {
-        tile.icon = icon;
-        persist();
-        render();
-      }
+      tile.icon = await resolveIcon(url);
+      persist();
+      render();
     }
   });
 
