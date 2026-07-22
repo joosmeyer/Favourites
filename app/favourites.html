@@ -624,16 +624,38 @@
   }
 
   $("openFileBtn").addEventListener("click", async () => {
+    let handle;
     try {
-      const [handle] = await window.showOpenFilePicker({
+      [handle] = await window.showOpenFilePicker({
         types: [{ description: "Favourites data", accept: { "application/json": [".json"] } }],
       });
+    } catch (err) {
+      if (err.name !== "AbortError") console.error(err);
+      return;
+    }
+    try {
       const perm = await handle.requestPermission({ mode: "readwrite" });
-      if (perm !== "granted") return;
+      if (perm !== "granted") {
+        showGate(
+          "Couldn't get permission to save",
+          "",
+          { error: `The browser didn't grant write access to that file (permission: "${perm}"). This can happen if a prompt was dismissed, or if a corporate policy restricts it. Try again, or check with IT if it keeps happening.` }
+        );
+        return;
+      }
+      // Prove the file is actually writable now, the same way "Create new file" does --
+      // otherwise a broken save wouldn't surface until much later, whenever the first
+      // real change happens to get saved.
+      await verifyWritable(handle);
       fileHandle = handle;
       await loadFromFile();
     } catch (err) {
-      if (err.name !== "AbortError") console.error(err);
+      console.error(err);
+      showGate(
+        "Couldn't confirm this file is writable",
+        "",
+        { error: `Got permission, but a check right after found the file didn't actually update: ${err.message}. This usually means something on this computer (antivirus, a sync tool, a locked-down folder) is blocking the save. Try picking a different file, or check with IT.` }
+      );
     }
   });
 
@@ -679,6 +701,17 @@
     if (readBack !== text) {
       throw new Error("File on disk doesn't match what was just written -- something is reverting or blocking the save (antivirus/EDR and synced-folder tools are common causes).");
     }
+  }
+
+  // Proves a file is genuinely writable, for a file that already has real content in it
+  // (so a plain "write the same content back" check can't tell the difference between
+  // a real write and one that's silently ignored -- the file matches either way). Writes
+  // something provably different first, confirms THAT landed, then restores the original.
+  async function verifyWritable(handle) {
+    const original = await (await handle.getFile()).text();
+    const probe = JSON.stringify({ __writeProbe: crypto.randomUUID() });
+    await writeAndVerify(handle, probe);
+    await writeAndVerify(handle, original);
   }
 
   function persist() {
