@@ -319,6 +319,34 @@
     #gateError { background: #3a201d; color: #ffb4ab; border-color: #6b342c; }
   }
 
+  /* save-failure banner */
+  #saveBanner {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--danger);
+    color: #fff;
+    padding: 10px 24px;
+    font-size: 13px;
+    align-items: center;
+    gap: 12px;
+  }
+  #saveBanner.visible { display: flex; }
+  #saveBanner strong { font-weight: 700; }
+  #saveBannerDetail { opacity: 0.9; }
+  #saveBanner button {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.6);
+    background: none;
+    color: #fff;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  #saveBanner button:hover { background: rgba(255,255,255,.15); }
+  #saveBannerDownload { margin-left: auto; }
+
   /* modal */
   .overlay {
     display: none;
@@ -381,6 +409,13 @@
     <button id="newLauncherBtn">+ New</button>
   </div>
 </header>
+
+<div id="saveBanner">
+  <strong>⚠ Your changes are NOT being saved.</strong>
+  <span id="saveBannerDetail"></span>
+  <button id="saveBannerDownload">⬇ Download backup now</button>
+  <button id="saveBannerRetry">Retry save</button>
+</div>
 
 <main>
   <div id="gatePanel">
@@ -608,36 +643,77 @@
         suggestedName: "favourites-data.json",
         types: [{ description: "Favourites data", accept: { "application/json": [".json"] } }],
       });
-      const writable = await handle.createWritable();
-      await writable.write(JSON.stringify(emptyData(), null, 2));
-      await writable.close();
+      await writeAndVerify(handle, JSON.stringify(emptyData(), null, 2));
       fileHandle = handle;
       await loadFromFile();
     } catch (err) {
-      if (err.name !== "AbortError") console.error(err);
+      if (err.name === "AbortError") return;
+      console.error(err);
+      showGate(
+        "Couldn't confirm the save worked",
+        "",
+        { error: `Created the file, but a check right after found it doesn't actually contain your data yet: ${err.message}. This usually means something on this computer (antivirus, a sync tool, a locked-down folder) is blocking the save. Try picking a different folder, or check with IT.` }
+      );
     }
   });
 
   // ---------- Saving ----------
   function setStatus(text) { $("saveStatus").textContent = text; }
 
+  function showSaveBanner(detail) {
+    $("saveBannerDetail").textContent = detail;
+    $("saveBanner").classList.add("visible");
+  }
+  function hideSaveBanner() { $("saveBanner").classList.remove("visible"); }
+
+  // Writes to disk, then reads the file back and checks it actually matches what was
+  // just written. On some locked-down corporate machines, antivirus/EDR software can
+  // interfere with the browser's write after it believes the write succeeded (the file
+  // never changes, or gets reverted) -- a plain try/catch around write()/close() misses
+  // that entirely, since neither call throws. This is the verification step.
+  async function writeAndVerify(handle, text) {
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    const readBack = await (await handle.getFile()).text();
+    if (readBack !== text) {
+      throw new Error("File on disk doesn't match what was just written -- something is reverting or blocking the save (antivirus/EDR and synced-folder tools are common causes).");
+    }
+  }
+
   function persist() {
     state.updatedAt = new Date().toISOString();
+    const text = JSON.stringify(state, null, 2);
     saveQueue = saveQueue.then(async () => {
       if (!fileHandle) return;
       setStatus("Saving…");
       try {
-        const writable = await fileHandle.createWritable();
-        await writable.write(JSON.stringify(state, null, 2));
-        await writable.close();
-        setStatus("Saved ✓");
+        await writeAndVerify(fileHandle, text);
+        setStatus("Saved ✓ " + new Date().toLocaleTimeString());
+        hideSaveBanner();
       } catch (err) {
         console.error(err);
-        setStatus("⚠ Save failed");
+        setStatus("⚠ NOT SAVED");
+        showSaveBanner(err.message || String(err));
       }
     });
     return saveQueue;
   }
+
+  $("saveBannerRetry").addEventListener("click", () => persist());
+
+  // Doesn't touch the File System Access API at all -- a plain browser download
+  // works even when that API is blocked or broken, so this is a real fallback,
+  // not just another way of hitting the same wall.
+  $("saveBannerDownload").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "favourites-data-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
   // ---------- Data helpers ----------
   const uid = () => crypto.randomUUID();
