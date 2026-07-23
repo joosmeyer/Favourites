@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Favourites</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #e2e4e8;
+    --text: #1c1e21;
+    --text-dim: #6b7280;
+    --accent: #2f6fed;
+    --danger: #e0483e;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 6px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181b;
+      --surface: #232428;
+      --border: #34363c;
+      --text: #eef0f2;
+      --text-dim: #9aa0a8;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 8px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 24px 10px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 {
+    font-size: 17px;
+    margin: 0 12px 0 0;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .linklike {
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 6px;
+  }
+  .linklike:hover { color: var(--text); background: var(--bg); }
+  #connectedPath {
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-left: 2px;
+  }
+  #launchRow { flex-wrap: wrap; margin-top: 6px; }
+  .launch-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  #launchPills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .launch-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .launch-pill:hover { background: var(--surface); box-shadow: var(--shadow); }
+  .launch-pill .count { color: var(--text-dim); font-size: 11px; }
+  .launch-pill-actions { display: none; gap: 2px; }
+  .launch-pill:hover .launch-pill-actions { display: flex; }
+  .launch-pill-actions button {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 10px;
+    padding: 0;
+  }
+  .launch-pill.confirm { gap: 8px; }
+  .launch-pill.confirm button { padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .launch-pill.confirm button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  #newLauncherBtn {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  #newLauncherBtn:hover { color: var(--text); border-color: var(--text-dim); }
+  .checklist {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .checklist label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .checklist .none { color: var(--text-dim); font-size: 13px; }
+  #search {
+    flex: 1;
+    max-width: 320px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  #search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .spacer { flex: 1; }
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  #addBtn {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  #addBtn:hover { filter: brightness(1.08); }
+  #saveStatus {
+    font-size: 12px;
+    color: var(--text-dim);
+    min-width: 70px;
+    text-align: right;
+  }
+  main {
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  #breadcrumb {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  #breadcrumb.visible { display: flex; }
+  #breadcrumb button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  #breadcrumb button.drop-target { background: rgba(47,111,237,.15); }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 18px;
+  }
+  .tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text);
+    padding: 10px 6px;
+    border-radius: var(--radius);
+    cursor: grab;
+    user-select: none;
+  }
+  .tile:hover { background: var(--surface); box-shadow: var(--shadow); }
+  .tile.drag-over-before { box-shadow: inset 3px 0 0 var(--accent); }
+  .tile.folder-drop-target { background: rgba(47,111,237,.15); }
+  .icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .folder-icon {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    padding: 5px;
+    background: var(--bg);
+  }
+  .folder-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+  .tile-name {
+    margin-top: 6px;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.25;
+    max-width: 84px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .tile-actions {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: none;
+    gap: 2px;
+  }
+  .tile:hover .tile-actions { display: flex; }
+  .tile-actions button {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .tile-actions button:hover { background: var(--bg); }
+  .confirm-row {
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    text-align: center;
+  }
+  .confirm-row .row { display: flex; gap: 6px; }
+  .confirm-row button {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 11px;
+  }
+  .confirm-row button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  #empty {
+    display: none;
+    text-align: center;
+    color: var(--text-dim);
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+  #empty.visible { display: block; }
+
+  /* first-run / reconnect panel */
+  #gatePanel {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 80px 20px;
+    gap: 16px;
+  }
+  #gatePanel.visible { display: flex; }
+  #gatePanel h2 { margin: 0; font-size: 20px; }
+  #gatePanel p { margin: 0; color: var(--text-dim); font-size: 14px; max-width: 420px; }
+  .gate-buttons { display: flex; gap: 12px; margin-top: 8px; }
+  .gate-buttons button {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 14px;
+    box-shadow: var(--shadow);
+  }
+  .gate-buttons button.primary { background: var(--accent); color: #fff; border: none; }
+  #gateError {
+    display: none;
+    max-width: 460px;
+    background: #fdecea;
+    color: #7a1f16;
+    border: 1px solid #f3c2bd;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+  }
+  @media (prefers-color-scheme: dark) {
+    #gateError { background: #3a201d; color: #ffb4ab; border-color: #6b342c; }
+  }
+
+  /* save-failure banner */
+  #saveBanner {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--danger);
+    color: #fff;
+    padding: 10px 24px;
+    font-size: 13px;
+    align-items: center;
+    gap: 12px;
+  }
+  #saveBanner.visible { display: flex; }
+  #saveBanner strong { font-weight: 700; }
+  #saveBannerDetail { opacity: 0.9; }
+  #saveBanner button {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.6);
+    background: none;
+    color: #fff;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  #saveBanner button:hover { background: rgba(255,255,255,.15); }
+  #saveBannerDownload { margin-left: auto; }
+
+  /* modal */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .overlay.visible { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 22px;
+    width: 320px;
+    box-shadow: var(--shadow);
+  }
+  .modal h3 { margin: 0 0 14px; font-size: 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .field input, .field select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .modal-actions button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 13px;
+  }
+  .modal-actions button.primary { background: var(--accent); color: #fff; border: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <h1>★ <span id="ownerLabel">Favourites</span><button id="ownerLabelEdit" class="linklike" title="Rename">✎</button></h1>
+    <input id="search" type="text" placeholder="Search…" autocomplete="off">
+    <div class="spacer"></div>
+    <span id="saveStatus"></span>
+    <button id="addBtn">+ Add</button>
+  </div>
+  <div id="connectedPath"></div>
+  <div class="header-row" id="launchRow">
+    <span class="launch-label">🚀 Quick Launch</span>
+    <div id="launchPills"></div>
+    <button id="newLauncherBtn">+ New</button>
+  </div>
+</header>
+
+<div id="saveBanner">
+  <strong>⚠ Your changes are NOT being saved.</strong>
+  <span id="saveBannerDetail"></span>
+  <button id="saveBannerDownload">⬇ Download backup now</button>
+  <button id="saveBannerRetry">Retry save</button>
+</div>
+
+<main>
+  <div id="gatePanel">
+    <h2 id="gateTitle">Connect your favourites file</h2>
+    <p id="gateText">This app stores your tiles in a plain JSON file, wherever you choose to keep it (a shared drive works well). Pick that file (or create one) to get started — Favourites remembers it automatically after that, no more prompts.</p>
+    <div id="gateError"></div>
+    <div class="gate-buttons" id="gateButtons">
+      <button id="openFileBtn">📂 Open existing file</button>
+      <button id="createFileBtn" class="primary">✨ Create new file</button>
+    </div>
+  </div>
+
+  <div id="breadcrumb">
+    <button id="backBtn">← All Favourites</button>
+    <span id="folderTitle"></span>
+  </div>
+
+  <div id="grid"></div>
+  <div id="empty">No favourites yet — click <strong>+ Add</strong> to get started.</div>
+</main>
+
+<div class="overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Add favourite</h3>
+    <div id="tileFields">
+      <div class="field">
+        <label for="nameInput">Name</label>
+        <input id="nameInput" type="text" placeholder="e.g. Jira">
+      </div>
+      <div class="field">
+        <label for="urlInput">Website</label>
+        <input id="urlInput" type="text" placeholder="https://…">
+      </div>
+      <div class="field">
+        <label for="folderSelect">Folder</label>
+        <select id="folderSelect"></select>
+      </div>
+      <div class="field" id="newFolderField" style="display:none;">
+        <label for="newFolderInput">New folder name</label>
+        <input id="newFolderInput" type="text" placeholder="e.g. Work Tools">
+      </div>
+    </div>
+    <div id="folderFields" style="display:none;">
+      <div class="field">
+        <label for="folderNameInput">Folder name</label>
+        <input id="folderNameInput" type="text">
+      </div>
+    </div>
+    <div id="launcherFields" style="display:none;">
+      <div class="field">
+        <label for="launcherNameInput">Quick Launch name</label>
+        <input id="launcherNameInput" type="text" placeholder="e.g. Morning Routine">
+      </div>
+      <div class="field">
+        <label>Pages to launch</label>
+        <div id="launcherTileList" class="checklist"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="modalCancel">Cancel</button>
+      <button id="modalSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const emptyData = () => ({ version: 1, updatedAt: null, ownerLabel: "", folders: [], tiles: [], launchers: [] });
+
+  let state = emptyData();
+  let currentFilePath = null;
+  let currentFolderId = null;
+  let modalMode = "tile"; // "tile" | "folder" | "launcher"
+  let editingTileId = null;
+  let editingFolderId = null;
+  let editingLauncherId = null;
+  let searchQuery = "";
+  let saveQueue = Promise.resolve();
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- File access / gate ----------
+  // No permission model to fight here (unlike the browser version): once a path is
+  // remembered by the main process, every future launch reads it directly, no prompt.
+  function showGate(title, text, { mode = "pick", error = "" } = {}) {
+    $("gateTitle").textContent = title;
+    $("gateText").textContent = text;
+    $("gateButtons").style.display = mode === "none" ? "none" : "flex";
+    $("gateError").style.display = error ? "block" : "none";
+    $("gateError").textContent = error;
+    $("gatePanel").classList.add("visible");
+    $("grid").style.display = "none";
+    $("breadcrumb").classList.remove("visible");
+    $("empty").classList.remove("visible");
+  }
+  function hideGate() {
+    $("gatePanel").classList.remove("visible");
+    $("grid").style.display = "grid";
+  }
+
+  async function initFileAccess() {
+    const lastPath = await window.favouritesAPI.getLastPath();
+    if (!lastPath) {
+      showGate(
+        "Connect your favourites file",
+        "This app stores your tiles in a plain JSON file, wherever you choose to keep it (a shared drive works well). Pick that file (or create one) to get started — Favourites remembers it automatically after that, no more prompts."
+      );
+      return;
+    }
+    currentFilePath = lastPath;
+    await loadFromFile();
+  }
+
+  async function loadFromFile() {
+    try {
+      const text = await window.favouritesAPI.readFile(currentFilePath);
+      const parsed = text.trim() ? JSON.parse(text) : emptyData();
+      state = Object.assign(emptyData(), parsed);
+      if (!Array.isArray(state.folders)) state.folders = [];
+      if (!Array.isArray(state.tiles)) state.tiles = [];
+      if (!Array.isArray(state.launchers)) state.launchers = [];
+      await window.favouritesAPI.rememberPath(currentFilePath);
+      hideGate();
+      currentFolderId = null;
+      updateConnectedLabel();
+      render();
+    } catch (err) {
+      console.error(err);
+      showGate(
+        "Couldn't read that file",
+        "",
+        { error: `The saved file couldn't be opened (it may have been moved or deleted): ${err.message}. Pick your file again below.` }
+      );
+    }
+  }
+
+  $("openFileBtn").addEventListener("click", async () => {
+    const filePath = await window.favouritesAPI.chooseOpen();
+    if (!filePath) return;
+    try {
+      await verifyWritable(filePath);
+      currentFilePath = filePath;
+      await loadFromFile();
+    } catch (err) {
+      console.error(err);
+      showGate(
+        "Couldn't confirm this file is writable",
+        "",
+        { error: `Found the file, but a check right after found it isn't actually writable: ${err.message}. This usually means something on this computer (antivirus, a sync tool, a locked-down folder) is blocking the save. Try a different file, or check with IT.` }
+      );
+    }
+  });
+
+  $("createFileBtn").addEventListener("click", async () => {
+    const filePath = await window.favouritesAPI.chooseSaveNew();
+    if (!filePath) return;
+    try {
+      await writeAndVerify(filePath, JSON.stringify(emptyData(), null, 2));
+      currentFilePath = filePath;
+      await loadFromFile();
+    } catch (err) {
+      console.error(err);
+      showGate(
+        "Couldn't confirm the save worked",
+        "",
+        { error: `Created the file, but a check right after found it doesn't actually contain your data yet: ${err.message}. This usually means something on this computer (antivirus, a sync tool, a locked-down folder) is blocking the save. Try picking a different folder, or check with IT.` }
+      );
+    }
+  });
+
+  window.favouritesAPI.onSwitchFileRequested(() => {
+    showGate(
+      "Switch data file",
+      "Pick a different favourites file to switch to — your current one is left untouched."
+    );
+  });
+
+  // ---------- Owner label (the "named DB" indicator) ----------
+  function updateConnectedLabel() {
+    $("ownerLabel").textContent = state.ownerLabel || "Favourites";
+    $("connectedPath").textContent = currentFilePath ? "Connected to " + currentFilePath : "";
+    $("connectedPath").title = currentFilePath || "";
+  }
+
+  $("ownerLabelEdit").addEventListener("click", () => {
+    const next = window.prompt("Name this favourites file (only shown in this app):", state.ownerLabel || "");
+    if (next === null) return;
+    state.ownerLabel = next.trim();
+    updateConnectedLabel();
+    persist();
+  });
+
+  // ---------- Saving ----------
+  function setStatus(text) { $("saveStatus").textContent = text; }
+
+  function showSaveBanner(detail) {
+    $("saveBannerDetail").textContent = detail;
+    $("saveBanner").classList.add("visible");
+  }
+  function hideSaveBanner() { $("saveBanner").classList.remove("visible"); }
+
+  async function writeAndVerify(filePath, text) {
+    await window.favouritesAPI.writeFileVerified(filePath, text);
+  }
+
+  // Proves a file is genuinely writable, for a file that already has real content in it
+  // (so a plain "write the same content back" check can't tell the difference between
+  // a real write and one that's silently ignored -- the file matches either way). Writes
+  // something provably different first, confirms THAT landed, then restores the original.
+  async function verifyWritable(filePath) {
+    const original = await window.favouritesAPI.readFile(filePath);
+    const probe = JSON.stringify({ __writeProbe: crypto.randomUUID() });
+    await writeAndVerify(filePath, probe);
+    await writeAndVerify(filePath, original);
+  }
+
+  function persist() {
+    state.updatedAt = new Date().toISOString();
+    const text = JSON.stringify(state, null, 2);
+    saveQueue = saveQueue.then(async () => {
+      if (!currentFilePath) return;
+      setStatus("Saving…");
+      try {
+        await writeAndVerify(currentFilePath, text);
+        setStatus("Saved ✓ " + new Date().toLocaleTimeString());
+        hideSaveBanner();
+      } catch (err) {
+        console.error(err);
+        setStatus("⚠ NOT SAVED");
+        showSaveBanner(err.message || String(err));
+      }
+    });
+    return saveQueue;
+  }
+
+  $("saveBannerRetry").addEventListener("click", () => persist());
+
+  // Doesn't touch the primary save path at all -- a completely separate file dialog +
+  // write, so it's a real fallback even if whatever's blocking the main save is still
+  // blocking it.
+  $("saveBannerDownload").addEventListener("click", async () => {
+    const path = await window.favouritesAPI.chooseBackupSave();
+    if (!path) return;
+    await window.favouritesAPI.writeFile(path, JSON.stringify(state, null, 2));
+  });
+
+  // ---------- Data helpers ----------
+  const uid = () => crypto.randomUUID();
+  const tilesIn = (folderId) =>
+    state.tiles.filter((t) => t.folderId === folderId).sort((a, b) => a.order - b.order);
+
+  function moveTile(tileId, targetFolderId, beforeTileId) {
+    const tile = state.tiles.find((t) => t.id === tileId);
+    if (!tile) return;
+    const sourceFolderId = tile.folderId;
+    tile.folderId = targetFolderId;
+    const target = tilesIn(targetFolderId).filter((t) => t.id !== tileId);
+    let insertAt = beforeTileId ? target.findIndex((t) => t.id === beforeTileId) : -1;
+    if (insertAt === -1) insertAt = target.length;
+    target.splice(insertAt, 0, tile);
+    target.forEach((t, i) => (t.order = i));
+    if (sourceFolderId !== targetFolderId) {
+      tilesIn(sourceFolderId).forEach((t, i) => (t.order = i));
+    }
+    persist();
+  }
+
+  // ---------- Icons ----------
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function hashHue(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return h % 360;
+  }
+
+  function makeInitialsIcon(name) {
+    const letter = (name || "?").trim().charAt(0).toUpperCase() || "?";
+    const hue = hashHue(name || "?");
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = `hsl(${hue}, 55%, 55%)`;
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 32px -apple-system, Segoe UI, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(letter, 32, 34);
+    return canvas.toDataURL("image/png");
+  }
+
+  // tile.icon may be a cached data URI, a live favicon URL, or missing entirely --
+  // this covers all three and swaps to a generated initials icon if a live URL fails
+  // to load (offline, blocked by a proxy, site has no favicon, etc).
+  function setIconWithFallback(img, icon, name) {
+    img.src = icon || makeInitialsIcon(name);
+    img.onerror = () => { img.onerror = null; img.src = makeInitialsIcon(name); };
+  }
+
+  function faviconUrlFor(url) {
+    return new URL(url).origin + "/favicon.ico";
+  }
+
+  // Tries to embed the favicon as a data URI so it never needs the network again.
+  // This only works for the minority of sites whose favicon.ico response includes
+  // CORS headers (Access-Control-Allow-Origin) -- most static assets don't send any,
+  // since CORS headers are normally added for APIs, not incidental files like favicons.
+  async function fetchIconDataUrl(url) {
+    try {
+      const resp = await fetch(faviconUrlFor(url), { mode: "cors" });
+      if (!resp.ok) return null;
+      const blob = await resp.blob();
+      if (!blob.type.startsWith("image/")) return null;
+      return await blobToDataUrl(blob);
+    } catch {
+      return null;
+    }
+  }
+
+  // Best available icon for a new tile: an embedded (offline-safe) data URI when the
+  // site's favicon allows it, otherwise a live URL to the site's favicon -- still shows
+  // the real icon whenever there's network access, and the tile's onerror handler falls
+  // back to the initials icon if that URL doesn't load.
+  async function resolveIcon(url) {
+    return (await fetchIconDataUrl(url)) || faviconUrlFor(url);
+  }
+
+  // ---------- Rendering ----------
+  function normalizeUrl(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    return /^https?:\/\//i.test(trimmed) ? trimmed : "https://" + trimmed;
+  }
+
+  function render() {
+    renderLaunchBar();
+    const grid = $("grid");
+    grid.innerHTML = "";
+
+    if (searchQuery) {
+      $("breadcrumb").classList.remove("visible");
+      const q = searchQuery.toLowerCase();
+      const matches = state.tiles
+        .filter((t) => t.name.toLowerCase().includes(q) || t.url.toLowerCase().includes(q))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      matches.forEach((t) => grid.appendChild(renderTile(t)));
+      $("empty").classList.toggle("visible", matches.length === 0);
+      $("empty").textContent = "No matches.";
+      return;
+    }
+
+    if (currentFolderId) {
+      const folder = state.folders.find((f) => f.id === currentFolderId);
+      if (!folder) { currentFolderId = null; return render(); }
+      $("breadcrumb").classList.add("visible");
+      $("folderTitle").textContent = folder.name;
+      const kids = tilesIn(currentFolderId);
+      kids.forEach((t) => grid.appendChild(renderTile(t)));
+      $("empty").classList.toggle("visible", kids.length === 0);
+      $("empty").textContent = "This folder is empty.";
+      return;
+    }
+
+    $("breadcrumb").classList.remove("visible");
+    const rootTiles = tilesIn(null);
+    const sortedFolders = [...state.folders].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const items = [...sortedFolders.map((f) => ({ kind: "folder", data: f })),
+                   ...rootTiles.map((t) => ({ kind: "tile", data: t }))];
+    items.forEach((item) => {
+      grid.appendChild(item.kind === "folder" ? renderFolder(item.data) : renderTile(item.data));
+    });
+    $("empty").classList.toggle("visible", items.length === 0);
+    $("empty").textContent = "No favourites yet — click + Add to get started.";
+  }
+
+  // ---------- Quick Launch ----------
+  function renderLaunchBar() {
+    const wrap = $("launchPills");
+    wrap.innerHTML = "";
+    state.launchers.forEach((launcher) => {
+      const pill = document.createElement("div");
+      pill.className = "launch-pill";
+      pill.setAttribute("role", "button");
+      pill.tabIndex = 0;
+      pill.title = `Open ${launcher.tileIds.length} page(s)`;
+
+      const label = document.createElement("span");
+      label.textContent = launcher.name;
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = `(${launcher.tileIds.length})`;
+
+      const actions = document.createElement("span");
+      actions.className = "launch-pill-actions";
+      actions.appendChild(iconBtn("✎", (e) => { e.stopPropagation(); openLauncherModal(launcher.id); }));
+      actions.appendChild(iconBtn("×", (e) => { e.stopPropagation(); confirmDeleteLauncher(pill, launcher); }));
+
+      pill.append(label, count, actions);
+      pill.addEventListener("click", () => launchGroup(launcher.id));
+      pill.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); launchGroup(launcher.id); }
+      });
+      wrap.appendChild(pill);
+    });
+  }
+
+  function launchGroup(launcherId) {
+    const launcher = state.launchers.find((l) => l.id === launcherId);
+    if (!launcher) return;
+    launcher.tileIds
+      .map((id) => state.tiles.find((t) => t.id === id))
+      .filter(Boolean)
+      .forEach((tile) => window.open(tile.url, "_blank", "noopener"));
+  }
+
+  function confirmDeleteLauncher(pill, launcher) {
+    pill.innerHTML = "";
+    pill.classList.add("confirm");
+    const label = document.createElement("span");
+    label.textContent = `Delete "${launcher.name}"?`;
+    const yes = document.createElement("button");
+    yes.className = "danger";
+    yes.textContent = "Delete";
+    yes.onclick = (e) => {
+      e.stopPropagation();
+      state.launchers = state.launchers.filter((l) => l.id !== launcher.id);
+      persist();
+      render();
+    };
+    const no = document.createElement("button");
+    no.textContent = "Cancel";
+    no.onclick = (e) => { e.stopPropagation(); render(); };
+    pill.append(label, yes, no);
+  }
+
+  function renderTile(tile) {
+    const a = document.createElement("a");
+    a.className = "tile";
+    a.href = tile.url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.draggable = true;
+    a.dataset.id = tile.id;
+
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "icon-wrap";
+    const img = document.createElement("img");
+    setIconWithFallback(img, tile.icon, tile.name);
+    img.alt = "";
+    iconWrap.appendChild(img);
+
+    const name = document.createElement("div");
+    name.className = "tile-name";
+    name.textContent = tile.name;
+
+    const actions = document.createElement("div");
+    actions.className = "tile-actions";
+    actions.appendChild(iconBtn("✎", (e) => { e.preventDefault(); e.stopPropagation(); openTileModal(tile.id); }));
+    actions.appendChild(iconBtn("×", (e) => { e.preventDefault(); e.stopPropagation(); confirmDeleteTile(a, tile); }));
+
+    a.append(iconWrap, name, actions);
+    attachTileDrag(a, tile.id);
+    return a;
+  }
+
+  function renderFolder(folder) {
+    const div = document.createElement("div");
+    div.className = "tile";
+    div.dataset.folderId = folder.id;
+
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "icon-wrap";
+    const inner = document.createElement("div");
+    inner.className = "folder-icon";
+    tilesIn(folder.id).slice(0, 4).forEach((t) => {
+      const img = document.createElement("img");
+      setIconWithFallback(img, t.icon, t.name);
+      img.alt = "";
+      inner.appendChild(img);
+    });
+    iconWrap.appendChild(inner);
+
+    const name = document.createElement("div");
+    name.className = "tile-name";
+    name.textContent = folder.name;
+
+    const actions = document.createElement("div");
+    actions.className = "tile-actions";
+    actions.appendChild(iconBtn("✎", (e) => { e.stopPropagation(); openFolderModal(folder.id); }));
+    actions.appendChild(iconBtn("×", (e) => { e.stopPropagation(); confirmDeleteFolder(div, folder); }));
+
+    div.append(iconWrap, name, actions);
+    div.addEventListener("click", () => { currentFolderId = folder.id; render(); });
+
+    div.addEventListener("dragover", (e) => { e.preventDefault(); div.classList.add("folder-drop-target"); });
+    div.addEventListener("dragleave", () => div.classList.remove("folder-drop-target"));
+    div.addEventListener("drop", (e) => {
+      e.preventDefault();
+      div.classList.remove("folder-drop-target");
+      const tileId = e.dataTransfer.getData("text/plain");
+      if (tileId) moveTile(tileId, folder.id, null), render();
+    });
+    return div;
+  }
+
+  function iconBtn(label, onclick) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.addEventListener("click", onclick);
+    return b;
+  }
+
+  function confirmDeleteTile(container, tile) {
+    const row = document.createElement("div");
+    row.className = "confirm-row";
+    row.innerHTML = `<div>Delete "${escapeHtml(tile.name)}"?</div>`;
+    const btnRow = document.createElement("div");
+    btnRow.className = "row";
+    const yes = document.createElement("button");
+    yes.className = "danger";
+    yes.textContent = "Delete";
+    yes.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      state.tiles = state.tiles.filter((t) => t.id !== tile.id);
+      state.launchers.forEach((l) => { l.tileIds = l.tileIds.filter((id) => id !== tile.id); });
+      persist();
+      render();
+    };
+    const no = document.createElement("button");
+    no.textContent = "Cancel";
+    no.onclick = (e) => { e.preventDefault(); e.stopPropagation(); render(); };
+    btnRow.append(yes, no);
+    row.appendChild(btnRow);
+    container.appendChild(row);
+  }
+
+  function confirmDeleteFolder(container, folder) {
+    const row = document.createElement("div");
+    row.className = "confirm-row";
+    row.innerHTML = `<div>Delete "${escapeHtml(folder.name)}"? Its tiles move to Favourites.</div>`;
+    const btnRow = document.createElement("div");
+    btnRow.className = "row";
+    const yes = document.createElement("button");
+    yes.className = "danger";
+    yes.textContent = "Delete";
+    yes.onclick = (e) => {
+      e.stopPropagation();
+      tilesIn(folder.id).forEach((t) => (t.folderId = null));
+      tilesIn(null).forEach((t, i) => (t.order = i));
+      state.folders = state.folders.filter((f) => f.id !== folder.id);
+      persist();
+      render();
+    };
+    const no = document.createElement("button");
+    no.textContent = "Cancel";
+    no.onclick = (e) => { e.stopPropagation(); render(); };
+    btnRow.append(yes, no);
+    row.appendChild(btnRow);
+    container.appendChild(row);
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ---------- Drag & drop (reorder within a list) ----------
+  function attachTileDrag(el, tileId) {
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", tileId);
+    });
+    el.addEventListener("dragover", (e) => {
+      if (!e.dataTransfer.types.includes("text/plain")) return;
+      e.preventDefault();
+      el.classList.add("drag-over-before");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("drag-over-before"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault();
+      el.classList.remove("drag-over-before");
+      const draggedId = e.dataTransfer.getData("text/plain");
+      if (!draggedId || draggedId === tileId) return;
+      const targetFolderId = currentFolderId; // reordering only happens within the currently visible list
+      moveTile(draggedId, targetFolderId, tileId);
+      render();
+    });
+  }
+
+  $("grid").addEventListener("dragover", (e) => {
+    if (e.target === $("grid")) e.preventDefault();
+  });
+  $("grid").addEventListener("drop", (e) => {
+    if (e.target !== $("grid")) return;
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (draggedId) { moveTile(draggedId, currentFolderId, null); render(); }
+  });
+
+  $("backBtn").addEventListener("click", () => { currentFolderId = null; render(); });
+  $("backBtn").addEventListener("dragover", (e) => { e.preventDefault(); $("backBtn").classList.add("drop-target"); });
+  $("backBtn").addEventListener("dragleave", () => $("backBtn").classList.remove("drop-target"));
+  $("backBtn").addEventListener("drop", (e) => {
+    e.preventDefault();
+    $("backBtn").classList.remove("drop-target");
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (draggedId) { moveTile(draggedId, null, null); render(); }
+  });
+
+  // ---------- Search ----------
+  $("search").addEventListener("input", (e) => { searchQuery = e.target.value; render(); });
+
+  // ---------- Add / Edit modal ----------
+  function populateFolderSelect(selectedId) {
+    const sel = $("folderSelect");
+    sel.innerHTML = "";
+    sel.appendChild(new Option("No folder", ""));
+    state.folders.forEach((f) => sel.appendChild(new Option(f.name, f.id)));
+    sel.appendChild(new Option("+ New folder…", "__new__"));
+    sel.value = selectedId || "";
+  }
+
+  $("folderSelect").addEventListener("change", () => {
+    $("newFolderField").style.display = $("folderSelect").value === "__new__" ? "block" : "none";
+  });
+
+  function hideAllModalFields() {
+    $("tileFields").style.display = "none";
+    $("folderFields").style.display = "none";
+    $("launcherFields").style.display = "none";
+  }
+
+  function openTileModal(tileId) {
+    modalMode = "tile";
+    editingTileId = tileId || null;
+    hideAllModalFields();
+    $("modalTitle").textContent = tileId ? "Edit favourite" : "Add favourite";
+    $("tileFields").style.display = "block";
+    $("newFolderField").style.display = "none";
+    const tile = tileId ? state.tiles.find((t) => t.id === tileId) : null;
+    $("nameInput").value = tile ? tile.name : "";
+    $("urlInput").value = tile ? tile.url : "";
+    populateFolderSelect(tile ? tile.folderId : currentFolderId);
+    $("newFolderInput").value = "";
+    $("modalOverlay").classList.add("visible");
+    $("nameInput").focus();
+  }
+
+  function openFolderModal(folderId) {
+    modalMode = "folder";
+    editingFolderId = folderId;
+    hideAllModalFields();
+    $("modalTitle").textContent = "Rename folder";
+    $("folderFields").style.display = "block";
+    const folder = state.folders.find((f) => f.id === folderId);
+    $("folderNameInput").value = folder ? folder.name : "";
+    $("modalOverlay").classList.add("visible");
+    $("folderNameInput").focus();
+  }
+
+  function openLauncherModal(launcherId) {
+    modalMode = "launcher";
+    editingLauncherId = launcherId || null;
+    hideAllModalFields();
+    $("modalTitle").textContent = launcherId ? "Edit Quick Launch" : "New Quick Launch";
+    $("launcherFields").style.display = "block";
+    const launcher = launcherId ? state.launchers.find((l) => l.id === launcherId) : null;
+    $("launcherNameInput").value = launcher ? launcher.name : "";
+    const selectedIds = new Set(launcher ? launcher.tileIds : []);
+
+    const list = $("launcherTileList");
+    list.innerHTML = "";
+    if (state.tiles.length === 0) {
+      const none = document.createElement("div");
+      none.className = "none";
+      none.textContent = "Add some favourites first, then come back to group them here.";
+      list.appendChild(none);
+    } else {
+      [...state.tiles]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((tile) => {
+          const label = document.createElement("label");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = tile.id;
+          checkbox.checked = selectedIds.has(tile.id);
+          label.append(checkbox, document.createTextNode(tile.name));
+          list.appendChild(label);
+        });
+    }
+
+    $("modalOverlay").classList.add("visible");
+    $("launcherNameInput").focus();
+  }
+
+  function closeModal() { $("modalOverlay").classList.remove("visible"); }
+
+  $("addBtn").addEventListener("click", () => openTileModal(null));
+  $("newLauncherBtn").addEventListener("click", () => openLauncherModal(null));
+  $("modalCancel").addEventListener("click", closeModal);
+  $("modalOverlay").addEventListener("click", (e) => { if (e.target === $("modalOverlay")) closeModal(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("modalOverlay").classList.contains("visible")) closeModal();
+  });
+
+  $("modalSave").addEventListener("click", async () => {
+    if (modalMode === "folder") {
+      const name = $("folderNameInput").value.trim();
+      if (!name) return;
+      const folder = state.folders.find((f) => f.id === editingFolderId);
+      folder.name = name;
+      persist();
+      closeModal();
+      render();
+      return;
+    }
+
+    if (modalMode === "launcher") {
+      const name = $("launcherNameInput").value.trim();
+      if (!name) return;
+      const tileIds = [...$("launcherTileList").querySelectorAll("input:checked")].map((cb) => cb.value);
+      if (editingLauncherId) {
+        const launcher = state.launchers.find((l) => l.id === editingLauncherId);
+        launcher.name = name;
+        launcher.tileIds = tileIds;
+      } else {
+        state.launchers.push({ id: uid(), name, tileIds });
+      }
+      persist();
+      closeModal();
+      render();
+      return;
+    }
+
+    const name = $("nameInput").value.trim();
+    const url = normalizeUrl($("urlInput").value);
+    if (!name || !url) return;
+
+    let folderId = $("folderSelect").value || null;
+    if (folderId === "__new__") {
+      const newName = $("newFolderInput").value.trim();
+      if (!newName) return;
+      const newFolder = { id: uid(), name: newName, order: state.folders.length };
+      state.folders.push(newFolder);
+      folderId = newFolder.id;
+    }
+
+    if (editingTileId) {
+      const tile = state.tiles.find((t) => t.id === editingTileId);
+      tile.name = name;
+      tile.url = url;
+      if (tile.folderId !== folderId) moveTile(tile.id, folderId, null);
+      persist();
+      closeModal();
+      render();
+    } else {
+      const list = tilesIn(folderId);
+      const tile = { id: uid(), name, url, icon: makeInitialsIcon(name), folderId, order: list.length };
+      state.tiles.push(tile);
+      persist();
+      closeModal();
+      render();
+      tile.icon = await resolveIcon(url);
+      persist();
+      render();
+    }
+  });
+
+  // ---------- Boot ----------
+  initFileAccess();
+})();
+</script>
+</body>
+</html>
