@@ -367,8 +367,8 @@
   }
   .modal h3 { margin: 0 0 14px; font-size: 16px; }
   .field { margin-bottom: 12px; }
-  .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
-  .field input, .field select {
+  .field > label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .field > input, .field > select {
     width: 100%;
     padding: 8px 10px;
     border-radius: 8px;
@@ -376,6 +376,12 @@
     background: var(--bg);
     color: var(--text);
     font-size: 14px;
+  }
+  .field-hint {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.4;
   }
   .modal-actions {
     display: flex;
@@ -447,8 +453,16 @@
         <input id="nameInput" type="text" placeholder="e.g. Jira">
       </div>
       <div class="field">
-        <label for="urlInput">Website</label>
+        <label for="tileTypeSelect">Type</label>
+        <select id="tileTypeSelect">
+          <option value="website">🌐 Website</option>
+          <option value="app">💻 App / local link</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="urlInput" id="urlFieldLabel">Website</label>
         <input id="urlInput" type="text" placeholder="https://…">
+        <div id="urlFieldHint" class="field-hint" style="display:none;"></div>
       </div>
       <div class="field">
         <label for="folderSelect">Folder</label>
@@ -954,6 +968,7 @@
     a.rel = "noopener";
     a.draggable = true;
     a.dataset.id = tile.id;
+    a.title = (tile.type === "app" ? "App: " : "") + tile.url;
 
     const iconWrap = document.createElement("div");
     iconWrap.className = "icon-wrap";
@@ -1136,6 +1151,22 @@
     $("newFolderField").style.display = $("folderSelect").value === "__new__" ? "block" : "none";
   });
 
+  // "App / local link" tiles point at a Windows-registered link type (outlook:,
+  // slack://, teams:, zoommtg://, etc.) instead of a website -- the only way a web
+  // page is allowed to launch a local program, since browsers block launching
+  // arbitrary .exe files directly for security. A plain .exe with no such link type
+  // won't work this way; there's no browser-safe way around that.
+  function updateUrlFieldForType() {
+    const isApp = $("tileTypeSelect").value === "app";
+    $("urlFieldLabel").textContent = isApp ? "App link" : "Website";
+    $("urlInput").placeholder = isApp ? "e.g. outlook: or slack://open" : "https://…";
+    $("urlFieldHint").style.display = isApp ? "block" : "none";
+    $("urlFieldHint").textContent = isApp
+      ? "Only works for apps that register their own link type -- most major apps (Outlook, Teams, Slack, Zoom, Spotify) do. Won't work for a plain .exe with no link type; browsers block that for security."
+      : "";
+  }
+  $("tileTypeSelect").addEventListener("change", updateUrlFieldForType);
+
   function hideAllModalFields() {
     $("tileFields").style.display = "none";
     $("folderFields").style.display = "none";
@@ -1151,6 +1182,8 @@
     $("newFolderField").style.display = "none";
     const tile = tileId ? state.tiles.find((t) => t.id === tileId) : null;
     $("nameInput").value = tile ? tile.name : "";
+    $("tileTypeSelect").value = tile && tile.type === "app" ? "app" : "website";
+    updateUrlFieldForType();
     $("urlInput").value = tile ? tile.url : "";
     populateFolderSelect(tile ? tile.folderId : currentFolderId);
     $("newFolderInput").value = "";
@@ -1245,7 +1278,10 @@
     }
 
     const name = $("nameInput").value.trim();
-    const url = normalizeUrl($("urlInput").value);
+    const type = $("tileTypeSelect").value === "app" ? "app" : "website";
+    // App links (outlook:, slack://open, etc.) must be used exactly as typed -- forcing
+    // an https:// prefix onto them the way website URLs get one would break them.
+    const url = type === "app" ? $("urlInput").value.trim() : normalizeUrl($("urlInput").value);
     if (!name || !url) return;
 
     let folderId = $("folderSelect").value || null;
@@ -1261,20 +1297,25 @@
       const tile = state.tiles.find((t) => t.id === editingTileId);
       tile.name = name;
       tile.url = url;
+      tile.type = type;
       if (tile.folderId !== folderId) moveTile(tile.id, folderId, null);
       persist();
       closeModal();
       render();
     } else {
       const list = tilesIn(folderId);
-      const tile = { id: uid(), name, url, icon: makeInitialsIcon(name), folderId, order: list.length };
+      const tile = { id: uid(), name, url, type, icon: makeInitialsIcon(name), folderId, order: list.length };
       state.tiles.push(tile);
       persist();
       closeModal();
       render();
-      tile.icon = await resolveIcon(url);
-      persist();
-      render();
+      // Favicons only make sense for real websites -- app links have no such concept,
+      // and aren't guaranteed to even be valid URLs `new URL()` could parse.
+      if (type === "website") {
+        tile.icon = await resolveIcon(url);
+        persist();
+        render();
+      }
     }
   });
 

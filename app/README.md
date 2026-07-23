@@ -23,6 +23,21 @@ open. Click the button itself to launch everything in it (each page opens in a n
 hover it for edit/delete icons. Quick Launch groups just reference your existing tiles,
 so add the sites as favourites first, then group them.
 
+## Launching apps, not just websites
+
+When adding or editing a favourite, set **Type** to **💻 App / local link** instead of
+Website. The link field then accepts a Windows-registered link type instead of a URL —
+e.g. `outlook:`, `slack://open`, `teams:`, `zoommtg://`, `spotify:`. Clicking the tile
+asks Windows to open that app directly, the same way clicking a Zoom or Slack link in an
+email does.
+
+This only works for apps that register a link type like that — most major apps do, but
+there's no browser-safe way to launch an arbitrary `.exe` with no such link type.
+Browsers deliberately block web pages from launching arbitrary local programs; a
+registered link type is the one sanctioned exception. If you're not sure whether an app
+has one, a quick web search for "*app name* URL scheme" or "*app name* URI handler"
+usually turns it up.
+
 ### Make it feel like a single icon
 
 Right-click `favourites.html` → **Send to → Desktop (create shortcut)**. You can rename
