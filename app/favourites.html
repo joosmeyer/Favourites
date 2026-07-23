@@ -964,8 +964,15 @@
     const a = document.createElement("a");
     a.className = "tile";
     a.href = tile.url;
-    a.target = "_blank";
-    a.rel = "noopener";
+    // App links must navigate the current tab, not open a new one -- browsers reliably
+    // hand a link off to its registered app when the current tab navigates to it, but
+    // that hand-off is unreliable from a freshly-opened blank tab (often just silently
+    // does nothing). A non-http(s) scheme doesn't actually navigate the page away either
+    // way, so staying in the current tab costs nothing here.
+    if (tile.type !== "app") {
+      a.target = "_blank";
+      a.rel = "noopener";
+    }
     a.draggable = true;
     a.dataset.id = tile.id;
     a.title = (tile.type === "app" ? "App: " : "") + tile.url;
